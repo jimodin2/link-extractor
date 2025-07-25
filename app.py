@@ -4,7 +4,6 @@ import pandas as pd
 import streamlit as st
 from urllib.parse import urljoin
 
-# Helper function to extract section links
 def extract_section_links(url, target_sections):
     response = requests.get(url)
     if response.status_code != 200:
@@ -14,10 +13,36 @@ def extract_section_links(url, target_sections):
     soup = BeautifulSoup(response.text, 'html.parser')
     data = []
 
-    for section in target_sections:
-        header = soup.find('span', {'id': section})
-        if not header:
+    for section_id in target_sections:
+        span = soup.find("span", {"id": section_id})
+        if not span:
             continue
+
+        # Get the heading tag that contains the section
+        heading_tag = span.find_parent(["h2", "h3"])
+        if not heading_tag:
+            continue
+
+        # Loop over all siblings after the heading until the next heading
+        for sibling in heading_tag.find_next_siblings():
+            if sibling.name and sibling.name.startswith("h"):
+                break  # Reached next section
+
+            # Look for links in this sibling (usually inside <ul><li>)
+            for link in sibling.find_all("a", href=True):
+                anchor = link.get_text(strip=True)
+                href = urljoin(url, link["href"])
+
+                if anchor and href:
+                    link_type = "internal" if link["href"].startswith("/wiki/") else "external"
+                    data.append({
+                        "Section": section_id,
+                        "Anchor": anchor,
+                        "Link": href,
+                        "Type": link_type
+                    })
+
+    return pd.DataFrame(data)
 
         # Navigate to the parent heading tag (usually <h2>)
         heading = header.find_parent(['h2', 'h3'])
