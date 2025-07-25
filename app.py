@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from urllib.parse import urljoin
 
+# -----------------------------------------------
+# Function to Extract Links from Wikipedia Sections
+# -----------------------------------------------
 def extract_section_links(url, target_sections):
     response = requests.get(url)
     if response.status_code != 200:
@@ -22,14 +25,17 @@ def extract_section_links(url, target_sections):
         if not heading_tag:
             continue
 
+        content = []
         for sibling in heading_tag.find_next_siblings():
-            if sibling.name and sibling.name.startswith("h"):
+            if sibling.name and sibling.name.startswith('h'):
                 break
+            if sibling.name in ['ul', 'p']:
+                content.append(sibling)
 
-            for link in sibling.find_all("a", href=True):
+        for block in content:
+            for link in block.find_all("a", href=True):
                 anchor = link.get_text(strip=True)
                 href = urljoin(url, link["href"])
-
                 if anchor and href:
                     link_type = "internal" if link["href"].startswith("/wiki/") else "external"
                     data.append({
@@ -41,9 +47,9 @@ def extract_section_links(url, target_sections):
 
     return pd.DataFrame(data)
 
-# -----------------------
-# Streamlit App Starts
-# -----------------------
+# ----------------------------
+# Streamlit Frontend
+# ----------------------------
 st.title("🧠 Wikipedia Section Link Extractor")
 
 url = st.text_input("Enter Wikipedia URL:", "https://en.wikipedia.org/wiki/August_1")
